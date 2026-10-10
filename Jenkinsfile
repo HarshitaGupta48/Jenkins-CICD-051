@@ -17,6 +17,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh '''
+                    test -f index.html
                     docker build -t $IMAGE_NAME:$TAG .
                     docker tag $IMAGE_NAME:$TAG $IMAGE_NAME:latest
                 '''
