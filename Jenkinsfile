@@ -1,3 +1,4 @@
+```groovy
 pipeline {
     agent any
 
@@ -7,7 +8,6 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main',
@@ -17,8 +17,10 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh 'docker build -t $IMAGE_NAME:$TAG .'
-                sh 'docker tag $IMAGE_NAME:$TAG $IMAGE_NAME:latest'
+                sh '''
+                    docker build -t $IMAGE_NAME:$TAG .
+                    docker tag $IMAGE_NAME:$TAG $IMAGE_NAME:latest
+                '''
             }
         }
 
@@ -30,10 +32,12 @@ pipeline {
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
                     sh '''
-                    echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                    docker push $IMAGE_NAME:$TAG
-                    docker push $IMAGE_NAME:latest
-                    docker logout
+                        set +x
+                        echo "$DOCKER_PASS" | docker login \
+                            -u "$DOCKER_USER" --password-stdin
+                        docker push $IMAGE_NAME:$TAG
+                        docker push $IMAGE_NAME:latest
+                        docker logout
                     '''
                 }
             }
@@ -42,18 +46,26 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh '''
-                docker stop student-app || true
-                docker rm student-app || true
-
-                docker pull $IMAGE_NAME:latest
-
-                docker run -d \
-                    --name student-app \
-                    -p 80:80 \
-                    --restart unless-stopped \
-                    $IMAGE_NAME:latest
+                    docker rm -f student-app || true
+                    docker pull $IMAGE_NAME:latest
+                    docker run -d \
+                        --name student-app \
+                        -p 8081:80 \
+                        --restart unless-stopped \
+                        $IMAGE_NAME:latest
+                    docker ps
                 '''
             }
         }
     }
+
+    post {
+        success {
+            echo 'Build, Push and Deployment Successful!'
+        }
+        failure {
+            echo 'Pipeline Failed. Check Console Output.'
+        }
+    }
 }
+```
